@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>円の最大直径を描画</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+        #length {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>画像内の黒い●の最大直径を検出して描画</h1>
+    <input type="file" id="imageLoader" accept="image/*" />
+    <canvas id="canvas"></canvas>
+    <div id="length"></div>
+
+    <script>
+        const imageLoader = document.getElementById('imageLoader');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const lengthDisplay = document.getElementById('length');
+
+        imageLoader.addEventListener('change', handleImage, false);
+
+        function handleImage(e) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    // Canvasのサイズを画像に合わせる
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+
+                    // 画像のピクセルデータを取得して黒い●を検出する
+                    findCirclesAndDrawMaxDiameter();
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(e.target.files[0]);
+        }
+
+        function findCirclesAndDrawMaxDiameter() {
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            const circles = [];
+            
+            // 簡単な黒いピクセルの検出
+            for (let y = 0; y < canvas.height; y++) {
+                for (let x = 0; x < canvas.width; x++) {
+                    const index = (y * canvas.width + x) * 4;
+                    const r = data[index];
+                    const g = data[index + 1];
+                    const b = data[index + 2];
+                    const a = data[index + 3];
+
+                    // 黒色判定 (RGBが全て低く、アルファが0でない場合)
+                    if (r < 50 && g < 50 && b < 50 && a > 0) {
+                        // 簡易な黒い領域の検出
+                        circles.push({x, y});
+                    }
+                }
+            }
+
+            // 最大直径の計算（単純な探索）
+            let maxDiameter = 0;
+            let pointA, pointB;
+
+            for (let i = 0; i < circles.length; i++) {
+                for (let j = i + 1; j < circles.length; j++) {
+                    const dist = Math.sqrt(
+                        Math.pow(circles[i].x - circles[j].x, 2) +
+                        Math.pow(circles[i].y - circles[j].y, 2)
+                    );
+                    if (dist > maxDiameter) {
+                        maxDiameter = dist;
+                        pointA = circles[i];
+                        pointB = circles[j];
+                    }
+                }
+            }
+
+            if (maxDiameter > 0 && pointA && pointB) {
+                // 最大直径に赤い線を引く
+                ctx.beginPath();
+                ctx.moveTo(pointA.x, pointA.y);
+                ctx.lineTo(pointB.x, pointB.y);
+                ctx.strokeStyle = 'red';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // 長さを表示する
+                lengthDisplay.textContent = `最大直径の長さ: ${Math.round(maxDiameter)} px`;
+            } else {
+                lengthDisplay.textContent = "黒い●が見つかりませんでした。";
+            }
+        }
+    </script>
+</body>
+</html>
